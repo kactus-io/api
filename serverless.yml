@@ -1,0 +1,90 @@
+service: kactus-api
+
+custom:
+  tableName: ${opt:stage, self:provider.stage}-dynamo-kactus-users
+
+provider:
+  name: aws
+  runtime: nodejs6.10
+  profile: perso
+  region: eu-west-1
+  environment:
+    TABLE_NAME: ${self:custom.tableName}
+    STRIPE_SECRET: ${env:STRIPE_SECRET}
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - "dynamodb:*"
+        - "logs:CreateLogGroup"
+        - "logs:CreateLogStream"
+        - "logs:PutLogEvents"
+        - "apigateway:POST"
+      Resource:
+        - arn:aws:dynamodb:*:*:table/${self:custom.tableName}
+        - "arn:aws:apigateway:*"
+
+functions:
+  unlock:
+    handler: api/unlock.handler
+    events:
+      - http:
+          path: /unlock
+          method: post
+          cors: true
+          integration: lambda
+          request:
+            template:
+              application/json: >
+                {
+                  "body": "$util.escapeJavaScript($input.json('$'))"
+                }
+  login:
+    handler: api/login.handler
+    events:
+      - http:
+          path: /login
+          method: post
+          cors: true
+          integration: lambda
+          request:
+            template:
+              application/json: >
+                {
+                  "body": "$util.escapeJavaScript($input.json('$'))"
+                }
+  getOne:
+    handler: api/getOne.handler
+    events:
+      - http:
+          path: /{githubId}
+          method: get
+          cors: true
+          integration: lambda
+          request:
+            parameters:
+              path:
+                githubId: true
+            template:
+              application/json: >
+                {
+                  "githubId": "$input.params('githubId')"
+                }
+
+resources:
+  Resources:
+    KactusUsersDynamoDbTable:
+      Type: 'AWS::DynamoDB::Table'
+      DeletionPolicy: Retain
+      Properties:
+        AttributeDefinitions:
+          -
+            AttributeName: githubId
+            AttributeType: S
+        KeySchema:
+          -
+            AttributeName: githubId
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: ${self:custom.tableName}
