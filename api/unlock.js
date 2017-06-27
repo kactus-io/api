@@ -67,5 +67,41 @@ module.exports.handler = (event, context, callback) => {
         message: 'Unlocked full access'
       })
     })
-    .catch(callback)
+    .catch((err) => {
+      console.error(err)
+      if (!err.type) {
+        return callback(err)
+      }
+      switch (err.type) {
+        case 'StripeCardError':
+          // A declined card error
+          const message = err.message // => e.g. "Your card's expiration year is invalid."
+          callback(new Error(`[400] ${message}`))
+          break
+        case 'RateLimitError':
+          // Too many requests made to the API too quickly
+          callback(new Error(`[503] Server is a bit overloaded, try again in a bit`))
+          break
+        case 'StripeInvalidRequestError':
+          // Invalid parameters were supplied to Stripe's API
+          callback(new Error(`[400] Bad request`))
+          break
+        case 'StripeAPIError':
+          // An error occurred internally with Stripe's API
+          callback(new Error(`[500] Stripe failed, sorry about that`))
+          break
+        case 'StripeConnectionError':
+          // Some kind of error occurred during the HTTPS communication
+          callback(new Error(`[500] Stripe is down, sorry about that`))
+          break
+        case 'StripeAuthenticationError':
+          // You probably used an incorrect API key
+          callback(new Error(`[500] How did that happen!?`))
+          break
+        default:
+          // Handle any other types of unexpected errors
+          callback(err)
+          break
+      }
+    })
 }
