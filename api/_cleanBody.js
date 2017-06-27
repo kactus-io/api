@@ -1,6 +1,6 @@
 module.exports = function cleanBody (body) {
   const res = {
-    githubId: body.githubId
+    githubId: '' + body.githubId
   }
   if (body.email) {
     res.email = body.email

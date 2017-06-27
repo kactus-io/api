@@ -63,6 +63,7 @@ module.exports.handler = (event, context, callback) => {
     .then(res => {
       if (bailout) { return }
       callback(null, {
+        ok: true,
         message: 'Unlocked full access'
       })
     })

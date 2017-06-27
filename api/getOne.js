@@ -8,7 +8,10 @@ module.exports.handler = (event, context, callback) => {
         callback(new Error('[404] Not found'))
         return
       }
-      callback(null, item)
+      callback(null, {
+        ok: true,
+        user: item
+      })
     })
     .catch(callback)
 }
