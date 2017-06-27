@@ -39,7 +39,10 @@ module.exports.handler = (event, context, callback) => {
       if (bailout) { return }
       return stripe.customers.create({
         email: body.email,
-        source: token
+        source: token,
+        metadata: {
+          githubId: body.githubId
+        }
       })
     })
     .then(customer => {

@@ -11,6 +11,7 @@ provider:
   environment:
     TABLE_NAME: ${self:custom.tableName}
     STRIPE_SECRET: ${env:STRIPE_SECRET}
+    STRIPE_ENDPOINT_SECRET: ${env:STRIPE_ENDPOINT_SECRET}
   iamRoleStatements:
     - Effect: "Allow"
       Action:
@@ -68,6 +69,21 @@ functions:
               application/json: >
                 {
                   "githubId": "$input.params('githubId')"
+                }
+  stripeWebhook:
+    handler: webhook/stripe.handler
+    events:
+      - http:
+          path: /webhook/stripe
+          method: post
+          cors: true
+          integration: lambda
+          request:
+            template:
+              application/json: >
+                {
+                  "body": "$util.escapeJavaScript($input.body)",
+                  "stripeSignature" : "$input.params('Stripe-Signature')"
                 }
 
 resources:
