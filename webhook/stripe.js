@@ -14,10 +14,13 @@ module.exports.handler = (event, context, callback) => {
   const subscription = stripeEvent.data.object
   if (subscription.object === 'subscription' && subscription.status !== 'active') {
     stripe.customers.retrieve(subscription.customer).then((customer) => {
-      return storage.update({
-        githubId: customer.metadata.githubId,
-        valid: false
-      })
+      return storage.findOne(customer.metadata.githubId)
+    }).then(user => {
+      if (!user) {
+        return
+      }
+      user.valid = false
+      return storage.update(user)
     }).then(() => {
       callback(null, {
         ok: true,
