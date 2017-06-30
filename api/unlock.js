@@ -41,7 +41,9 @@ module.exports.handler = (event, context, callback) => {
         email: body.email,
         source: token,
         metadata: {
-          githubId: body.githubId
+          githubId: body.githubId,
+          login: body.login,
+          enterprise: body.enterprise
         }
       })
     })
@@ -51,7 +53,7 @@ module.exports.handler = (event, context, callback) => {
       body.stripeId = customer.id
       return stripe.subscriptions.create({
         customer: customer.id,
-        plan: 'kactus-1-month'
+        plan: body.enterprise ? 'kactus-enterprise-1-month' : 'kactus-1-month'
       })
     })
     .then(res => {
