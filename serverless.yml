@@ -34,10 +34,10 @@ functions:
           cors: true
           integration: lambda
           parameters:
-              path:
-                coupon: true
-              querystring:
-                requestId: true
+            path:
+              coupon: true
+            querystring:
+              requestId: true
             template:
               application/json: >
                 {
