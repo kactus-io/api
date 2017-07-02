@@ -1,16 +1,17 @@
 const stripe = require('stripe')(process.env.STRIPE_SECRET)
 
 module.exports.handler = (event, context, callback) => {
-  const coupon = decodeURIComponent(event.coupon)
+  const coupon = decodeURIComponent(event.path.coupon)
+  const requestId = parseInt(event.query.requestId)
 
-  return stripe.coupon.retrieve(coupon)
+  return stripe.coupons.retrieve(coupon)
     .then(coupon => {
       console.log(coupon)
       if (coupon && coupon.valid) {
-        const discount = '-' +
-          (coupon.amount_off
+        const discount = (coupon.amount_off
             ? (coupon.amount_off + coupon.currency)
             : (coupon.percent_off + '%')) +
+          ' off' +
           (coupon.duration_in_months
             ? (' for ' + coupon.duration_in_months + ' month' +
               (coupon.duration_in_months > 1 ? 's' : ''))
@@ -18,13 +19,13 @@ module.exports.handler = (event, context, callback) => {
         return callback(null, {
           ok: true,
           discount: discount,
-          requestId: event.requestId
+          requestId: requestId
         })
       } else {
         return callback(null, {
           ok: true,
           error: 'Coupon not valid anymore',
-          requestId: event.requestId
+          requestId: requestId
         })
       }
     })
@@ -33,7 +34,7 @@ module.exports.handler = (event, context, callback) => {
       return callback(null, {
         ok: true,
         error: 'Coupon not found',
-        requestId: event.requestId
+        requestId: requestId
       })
     })
 }

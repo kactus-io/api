@@ -53,7 +53,8 @@ module.exports.handler = (event, context, callback) => {
       body.stripeId = customer.id
       return stripe.subscriptions.create({
         customer: customer.id,
-        plan: body.enterprise ? 'kactus-enterprise-1-month' : 'kactus-1-month'
+        plan: body.enterprise ? 'kactus-enterprise-1-month' : 'kactus-1-month',
+        coupon: parsedBody.coupon || undefined
       })
     })
     .then(res => {
