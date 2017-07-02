@@ -25,6 +25,25 @@ provider:
         - "arn:aws:apigateway:*"
 
 functions:
+  coupon:
+    handler: api/coupon.handler
+    events:
+      - http:
+          path: /coupon/{coupon}
+          method: get
+          cors: true
+          integration: lambda
+          parameters:
+              path:
+                coupon: true
+              querystring:
+                requestId: true
+            template:
+              application/json: >
+                {
+                  "coupon": "$input.params('coupon')",
+                  "requestId": "$input.params('requestId')"
+                }
   unlock:
     handler: api/unlock.handler
     events:
