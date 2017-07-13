@@ -104,6 +104,24 @@ functions:
                   "body": "$util.escapeJavaScript($input.body)",
                   "stripeSignature" : "$input.params('Stripe-Signature')"
                 }
+  exceptionLogger:
+    handler: usage/exception.handler
+    memorySize: 128
+    events:
+      - http:
+          path: /usage/exception
+          method: post
+          cors: true
+          integration: lambda
+  statsLogger:
+    handler: usage/stats.handler
+    memorySize: 128
+    events:
+      - http:
+          path: /usage
+          method: post
+          cors: true
+          integration: lambda
 
 resources:
   Resources:
