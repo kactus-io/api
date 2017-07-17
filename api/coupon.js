@@ -18,6 +18,10 @@ module.exports.handler = (event, context, callback) => {
             : '')
         return callback(null, {
           ok: true,
+          percent_off: coupon.percent_off,
+          amount_off: coupon.amount_off,
+          currency: coupon.currency,
+          duration_in_months: coupon.duration_in_months,
           discount: discount,
           requestId: requestId
         })
