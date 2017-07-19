@@ -46,6 +46,7 @@ functions:
                 }
   unlock:
     handler: api/unlock.handler
+    timeout: 60
     events:
       - http:
           path: /unlock
@@ -91,6 +92,7 @@ functions:
                 }
   stripeWebhook:
     handler: webhook/stripe.handler
+    timeout: 60
     events:
       - http:
           path: /webhook/stripe
