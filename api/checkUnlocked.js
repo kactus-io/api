@@ -20,7 +20,7 @@ module.exports.handler = (event, context, callback) => {
     .findOne(body.githubId)
     .then(found => {
       if (found) {
-        return found
+        return storage.update(found).then(() => found)
       }
       return storage.create(body).then(() => body)
     })

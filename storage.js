@@ -7,7 +7,8 @@ const AWS = require('aws-sdk')
   login: String,
   stripeId: String,
   valid: Boolean,
-  createdAt: Date
+  createdAt: Date,
+  lastSeenAt: Date
 }
 */
 
@@ -28,6 +29,7 @@ module.exports = function Storage () {
     },
 
     update (data) {
+      data.lastSeenAt = Date.now()
       return db
         .put({
           TableName: process.env.TABLE_NAME,
@@ -38,6 +40,7 @@ module.exports = function Storage () {
 
     create (data) {
       data.createdAt = Date.now()
+      data.lastSeenAt = Date.now()
       return db
         .put({
           TableName: process.env.TABLE_NAME,
