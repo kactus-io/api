@@ -20,15 +20,15 @@ module.exports.handler = (event, context, callback) => {
     .findOne(body.githubId)
     .then(found => {
       if (found) {
-        return callback(null, {
-          ok: true,
-          message: 'Already logged in'
-        })
+        return found
       }
-      return storage.create(body).then(() => callback(null, {
+      return storage.create(body).then(() => body)
+    })
+    .then((user) => {
+      return callback(null, {
         ok: true,
-        message: 'Logged in'
-      }))
+        user: user
+      })
     })
     .catch(callback)
 }

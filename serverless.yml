@@ -59,12 +59,12 @@ functions:
                 {
                   "body": "$util.escapeJavaScript($input.json('$'))"
                 }
-  login:
-    handler: api/login.handler
+  checkUnlocked:
+    handler: api/checkUnlocked.handler
     events:
       - http:
-          path: /login
-          method: post
+          path: /checkUnlocked
+          method: put
           cors: true
           integration: lambda
           request:
