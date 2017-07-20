@@ -4,7 +4,7 @@ module.exports = function cleanBody (body) {
     enterprise: !!body.enterprise
   }
   if (body.email) {
-    res.email = body.email
+    res.email = body.email.email || body.email
   }
   if (body.login) {
     res.login = body.login
