@@ -19,7 +19,11 @@ module.exports.handler = (event, context, callback) => {
       if (!user) {
         return
       }
-      user.valid = false
+      if (subscription.plan.id === 'kactus-enterprise-1-month') {
+        user.validEnterprise = false
+      } else if (subscription.plan.id === 'kactus-1-month') {
+        user.valid = false
+      }
       return storage.update(user)
     }).then(() => {
       callback(null, {

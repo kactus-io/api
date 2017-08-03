@@ -85,7 +85,7 @@ module.exports.handler = (event, context, callback) => {
         // need to update the existing subscription
         return stripe.subscriptions.list({
           customer: body.stripeId,
-          plam: 'kactus-1-month',
+          plan: 'kactus-1-month',
           limit: 100
         }).then((subscriptions) => {
           const subscriptionToUpdate = subscriptions.data.find(s => s.status === 'active')
@@ -106,7 +106,9 @@ module.exports.handler = (event, context, callback) => {
       console.log(res)
       if (body.enterprise) {
         body.validEnterprise = true
+        body.valid = false
       } else {
+        body.validEnterprise = false
         body.valid = true
       }
     })
