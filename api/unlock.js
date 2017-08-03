@@ -2,6 +2,15 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET)
 const storage = require('../storage')()
 const cleanBody = require('./_cleanBody')
 
+function createNewSubscription (body, parsedBody) {
+  // create a new subscription
+  return stripe.subscriptions.create({
+    customer: body.stripeId,
+    plan: body.enterprise ? 'kactus-enterprise-1-month' : 'kactus-1-month',
+    coupon: parsedBody.coupon || undefined
+  })
+}
+
 module.exports.handler = (event, context, callback) => {
   let parsedBody
   try {
@@ -25,11 +34,18 @@ module.exports.handler = (event, context, callback) => {
     .findOne(body.githubId)
     .then(found => {
       if (found) {
-        if (found.valid) {
+        if (!body.enterprise && (found.valid || found.validEnterprise)) {
+          callback(new Error('[403] Already unlocked'))
+          bailout = true
+          return
+        } else if (body.enterprise && found.validEnterprise) {
           callback(new Error('[403] Already unlocked'))
           bailout = true
           return
         }
+        body.stripeId = found.stripeId
+        body.valid = found.valid
+        body.validEnterprise = found.validEnterprise
         method = 'update'
         return
       }
@@ -37,34 +53,66 @@ module.exports.handler = (event, context, callback) => {
     })
     .then(() => {
       if (bailout) { return }
-      return stripe.customers.create({
-        email: body.email,
-        source: token,
-        metadata: {
-          githubId: body.githubId,
-          login: body.login,
-          enterprise: body.enterprise
-        }
-      })
+      if (!body.stripeId) {
+        return stripe.customers.create({
+          email: body.email,
+          source: token,
+          metadata: {
+            githubId: body.githubId,
+            login: body.login,
+            enterprise: body.enterprise
+          }
+        }).then(customer => {
+          console.log(customer)
+          body.stripeId = customer.id
+          return storage[method](body)
+        })
+      } else {
+        return stripe.customers.update(body.stripeId, {
+          email: body.email,
+          source: token,
+          metadata: {
+            githubId: body.githubId,
+            login: body.login,
+            enterprise: body.enterprise
+          }
+        })
+      }
     })
-    .then(customer => {
+    .then(() => {
       if (bailout) { return }
-      console.log(customer)
-      body.stripeId = customer.id
-      return stripe.subscriptions.create({
-        customer: customer.id,
-        plan: body.enterprise ? 'kactus-enterprise-1-month' : 'kactus-1-month',
-        coupon: parsedBody.coupon || undefined
-      })
+      if (body.stripeId && body.valid && body.enterprise) {
+        // need to update the existing subscription
+        return stripe.subscriptions.list({
+          customer: body.stripeId,
+          plam: 'kactus-1-month',
+          limit: 100
+        }).then((subscriptions) => {
+          const subscriptionToUpdate = subscriptions.data.find(s => s.status === 'active')
+          if (!subscriptionToUpdate) {
+            return createNewSubscription(body, parsedBody)
+          }
+          return stripe.subscriptions.update(subscriptionToUpdate.id, {
+            plan: 'kactus-enterprise-1-month',
+            coupon: parsedBody.coupon || undefined
+          })
+        })
+      }
+      // create a new subscription
+      return createNewSubscription(body, parsedBody)
     })
     .then(res => {
       if (bailout) { return }
       console.log(res)
-      body.valid = true
+      if (body.enterprise) {
+        body.validEnterprise = true
+      } else {
+        body.valid = true
+      }
     })
     .then(() => {
       if (bailout) { return }
-      return storage[method](body)
+      return storage.update(body)
     })
     .then(res => {
       if (bailout) { return }

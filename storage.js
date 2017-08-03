@@ -7,6 +7,7 @@ const AWS = require('aws-sdk')
   login: String,
   stripeId: String,
   valid: Boolean,
+  validEnterprise: Boolean,
   createdAt: Date,
   lastSeenAt: Date
 }
