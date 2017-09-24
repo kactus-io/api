@@ -59,6 +59,21 @@ functions:
                 {
                   "body": "$util.escapeJavaScript($input.json('$'))"
                 }
+  unsubscribe:
+    handler: api/unsubscribe.handler
+    timeout: 60
+    events:
+      - http:
+          path: /unsubscribe
+          method: delete
+          cors: true
+          integration: lambda
+          request:
+            template:
+              application/json: >
+                {
+                  "body": "$util.escapeJavaScript($input.json('$'))"
+                }
   checkUnlocked:
     handler: api/checkUnlocked.handler
     events:
