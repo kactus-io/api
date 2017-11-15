@@ -2,26 +2,30 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET)
 const storage = require('../storage')()
 const cleanBody = require('./_cleanBody')
 
-function refoundCharges (charges, amount) {
+function refundCharges (charges, amount) {
   if (amount <= 0 || !charges.length) {
     return Promise.resolve()
   }
-  const chargeToRefound = charges.shift()
+  const chargeToRefund = charges.shift()
 
-  const refoundAmountForCharge = Math.min(amount, chargeToRefound.amount)
+  const refundAmountForCharge = Math.min(amount, chargeToRefund.amount)
 
   return stripe.refunds.create({
-    charge: chargeToRefound.id,
-    amount: refoundAmountForCharge
+    charge: chargeToRefund.id,
+    amount: refundAmountForCharge
   }).then(
-    () => refoundCharges(charges, amount - refoundAmountForCharge)
+    () => refundCharges(charges, amount - refundAmountForCharge)
   )
 }
 
-function cancelSubscriptions (subscriptions, refound) {
-  const options = refound ? undefined : { at_period_end: true }
+function cancelSubscriptions (subscriptions, refund) {
+  if (refund) {
+    return Promise.all(subscriptions.map(
+      subscription => stripe.subscriptions.del(subscription.id)
+    ))
+  }
   return Promise.all(subscriptions.map(
-    subscription => stripe.subscriptions.del(subscription.id, options)
+    subscription => stripe.subscriptions.del(subscription.id, { at_period_end: true })
   ))
 }
 
@@ -40,7 +44,7 @@ module.exports.handler = (event, context, callback) => {
     return
   }
 
-  const refound = !!parsedBody.refound
+  const refund = !!parsedBody.refound || !!parsedBody.refund // handle typo -_-'
   let bailout = false
   const prorationDate = Math.floor(Date.now() / 1000)
 
@@ -68,15 +72,15 @@ module.exports.handler = (event, context, callback) => {
     })
     .then(([subscriptions, charges]) => {
       if (bailout) { return }
-      if (!refound) {
-        return cancelSubscriptions(subscriptions.data, refound)
+      if (!refund) {
+        return cancelSubscriptions(subscriptions.data, refund)
       }
       return Promise.all(
         subscriptions.data.map(subscription => {
           return stripe.invoices.retrieveUpcoming(
             body.stripeId,
-            subscription.id,
             {
+              subscription: subscription.id,
               subscription_items: [{
                 id: subscription.items.data[0].id,
                 plan: subscription.items.data[0].plan.id,
@@ -85,14 +89,17 @@ module.exports.handler = (event, context, callback) => {
               subscription_prorate: true,
               subscription_proration_date: prorationDate
             }
-          )
+          ).then(invoice => {
+            const invoiceItem = invoice.lines.data.filter(d => d.type === 'invoiceitem')
+            return -invoiceItem[0].amount // amount is negative
+          })
         })
-      ).then(refoundAmounts => {
-        const totalRefoundAmount = refoundAmounts.reduce((prev, a) => prev + a, 0)
+      ).then(refundAmounts => {
+        const totalRefundAmount = refundAmounts.reduce((prev, a) => prev + a, 0)
 
-        return refoundCharges(charges.data, totalRefoundAmount)
+        return refundCharges(charges.data, totalRefundAmount)
       }).then(() => {
-        return cancelSubscriptions(subscriptions.data, refound)
+        return cancelSubscriptions(subscriptions.data, refund)
       })
     })
     .then(res => {
