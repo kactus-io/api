@@ -1,6 +1,8 @@
 const stripe = require('stripe')(process.env.STRIPE_SECRET)
-const storage = require('../storage')()
+const storage = require('../../storage')()
 const cleanBody = require('./_cleanBody')
+const handleError = require('../_handleError')
+const makeCallback = require('../_makeCallback')
 
 function refundCharges (charges, amount) {
   if (amount <= 0 || !charges.length) {
@@ -32,15 +34,15 @@ function cancelSubscriptions (subscriptions, refund) {
 module.exports.handler = (event, context, callback) => {
   let parsedBody
   try {
-    parsedBody = JSON.parse(event.body || {})
+    parsedBody = JSON.parse(event.body || '{}') || {}
   } catch (e) {
-    callback(new Error('[400] Could not parse the body'))
+    makeCallback(callback, 'Could not parse the body', 400)
     return
   }
 
   const body = cleanBody(parsedBody)
   if (!body.githubId) {
-    callback(new Error('[400] Missing github ID'))
+    makeCallback(callback, 'Missing github ID', 400)
     return
   }
 
@@ -104,47 +106,10 @@ module.exports.handler = (event, context, callback) => {
     })
     .then(res => {
       if (bailout) { return }
-      callback(null, {
+      makeCallback(callback, {
         ok: true,
         message: 'Subscription canceled'
       })
     })
-    .catch((err) => {
-      console.error(err)
-      if (!err.type) {
-        callback(new Error(`[500] ${err}`))
-        return
-      }
-      switch (err.type) {
-        case 'StripeCardError':
-          // A declined card error
-          const message = err.message // => e.g. "Your card's expiration year is invalid."
-          callback(new Error(`[400] ${message}`))
-          break
-        case 'RateLimitError':
-          // Too many requests made to the API too quickly
-          callback(new Error(`[503] Server is a bit overloaded, try again in a bit`))
-          break
-        case 'StripeInvalidRequestError':
-          // Invalid parameters were supplied to Stripe's API
-          callback(new Error(`[400] Bad request`))
-          break
-        case 'StripeAPIError':
-          // An error occurred internally with Stripe's API
-          callback(new Error(`[500] Stripe failed, sorry about that`))
-          break
-        case 'StripeConnectionError':
-          // Some kind of error occurred during the HTTPS communication
-          callback(new Error(`[500] Stripe is down, sorry about that`))
-          break
-        case 'StripeAuthenticationError':
-          // You probably used an incorrect API key
-          callback(new Error(`[500] How did that happen!?`))
-          break
-        default:
-          // Handle any other types of unexpected errors
-          callback(new Error(`[500] ${err.message}`))
-          break
-      }
-    })
+    .catch(handleError(callback))
 }

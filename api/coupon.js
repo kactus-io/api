@@ -1,8 +1,9 @@
 const stripe = require('stripe')(process.env.STRIPE_SECRET)
+const makeCallback = require('./_makeCallback')
 
 module.exports.handler = (event, context, callback) => {
-  const coupon = decodeURIComponent(event.path.coupon)
-  const requestId = parseInt(event.query.requestId)
+  const coupon = decodeURIComponent(event.pathParameters.coupon)
+  const requestId = parseInt(event.queryStringParameters.requestId)
 
   return stripe.coupons.retrieve(coupon)
     .then(coupon => {
@@ -16,7 +17,7 @@ module.exports.handler = (event, context, callback) => {
             ? (' for ' + coupon.duration_in_months + ' month' +
               (coupon.duration_in_months > 1 ? 's' : ''))
             : '')
-        return callback(null, {
+        return makeCallback(callback, {
           ok: true,
           percent_off: coupon.percent_off,
           amount_off: coupon.amount_off,
@@ -26,7 +27,7 @@ module.exports.handler = (event, context, callback) => {
           requestId: requestId
         })
       } else {
-        return callback(null, {
+        return makeCallback(callback, {
           ok: true,
           error: 'Coupon not valid anymore',
           requestId: requestId
@@ -35,7 +36,7 @@ module.exports.handler = (event, context, callback) => {
     })
     .catch((err) => {
       console.error(err)
-      return callback(null, {
+      return makeCallback(callback, {
         ok: true,
         error: 'Coupon not found',
         requestId: requestId

@@ -1,17 +1,25 @@
 service: kactus-api
 
 custom:
-  tableName: ${opt:stage, self:provider.stage}-dynamo-kactus-users
+  usersTableName: ${opt:stage, self:provider.stage}-dynamo-kactus-users
+  orgsTableName: ${opt:stage, self:provider.stage}-kactus-orgs
 
 provider:
   name: aws
   runtime: nodejs6.10
-  profile: perso
   region: eu-west-1
+  stage: ${opt:stage, 'dev'}
   environment:
-    TABLE_NAME: ${self:custom.tableName}
-    STRIPE_SECRET: ${env:STRIPE_SECRET}
-    STRIPE_ENDPOINT_SECRET: ${env:STRIPE_ENDPOINT_SECRET}
+    USERS_TABLE_NAME: ${self:custom.usersTableName}
+    ORGS_TABLE_NAME: ${self:custom.orgsTableName}
+    GITHUB_CLIENT_ID: ${file(./config.${self:provider.stage}.yml):GITHUB_CLIENT_ID}
+    GITHUB_CLIENT_SECRET: ${file(./config.${self:provider.stage}.yml):GITHUB_CLIENT_SECRET}
+    GITHUB_HOST: ${file(./config.${self:provider.stage}.yml):GITHUB_HOST}
+    GITHUB_PORT: ${file(./config.${self:provider.stage}.yml):GITHUB_PORT}
+    GITHUB_PATH: ${file(./config.${self:provider.stage}.yml):GITHUB_PATH}
+    GITHUB_METHOD: ${file(./config.${self:provider.stage}.yml):GITHUB_METHOD}
+    STRIPE_SECRET: ${file(./config.${self:provider.stage}.yml):STRIPE_SECRET}
+    STRIPE_ENDPOINT_SECRET: ${file(./config.${self:provider.stage}.yml):STRIPE_ENDPOINT_SECRET}
   iamRoleStatements:
     - Effect: "Allow"
       Action:
@@ -21,10 +29,18 @@ provider:
         - "logs:PutLogEvents"
         - "apigateway:POST"
       Resource:
-        - arn:aws:dynamodb:*:*:table/${self:custom.tableName}
+        - arn:aws:dynamodb:*:*:table/${self:custom.usersTableName}
+        - arn:aws:dynamodb:*:*:table/${self:custom.orgsTableName}
         - "arn:aws:apigateway:*"
 
 functions:
+  githubOAuth:
+    handler: api/githubOAuth.handler
+    events:
+      - http:
+          path: /oauth/github/authenticate
+          method: get
+          cors: true
   coupon:
     handler: api/coupon.handler
     events:
@@ -32,95 +48,67 @@ functions:
           path: /coupon/{coupon}
           method: get
           cors: true
-          integration: lambda
-          parameters:
-            path:
-              coupon: true
-            querystring:
-              requestId: true
-            template:
-              application/json: >
-                {
-                  "coupon": "$input.params('coupon')",
-                  "requestId": "$input.params('requestId')"
-                }
   unlock:
-    handler: api/unlock.handler
-    timeout: 60
+    handler: api/users/unlock.handler
+    timeout: 30
     events:
       - http:
           path: /unlock
           method: post
           cors: true
-          integration: lambda
-          request:
-            template:
-              application/json: >
-                {
-                  "body": "$util.escapeJavaScript($input.json('$'))"
-                }
   unsubscribe:
-    handler: api/unsubscribe.handler
-    timeout: 60
+    handler: api/users/unsubscribe.handler
+    timeout: 30
     events:
       - http:
           path: /unsubscribe
           method: delete
           cors: true
-          integration: lambda
-          request:
-            template:
-              application/json: >
-                {
-                  "body": "$util.escapeJavaScript($input.json('$'))"
-                }
   checkUnlocked:
-    handler: api/checkUnlocked.handler
+    handler: api/users/checkUnlocked.handler
     events:
       - http:
           path: /checkUnlocked
           method: put
           cors: true
-          integration: lambda
-          request:
-            template:
-              application/json: >
-                {
-                  "body": "$util.escapeJavaScript($input.json('$'))"
-                }
   getOne:
-    handler: api/getOne.handler
+    handler: api/users/getOne.handler
     events:
       - http:
-          path: /{githubId}
+          path: /user
           method: get
           cors: true
-          integration: lambda
-          request:
-            parameters:
-              path:
-                githubId: true
-            template:
-              application/json: >
-                {
-                  "githubId": "$input.params('githubId')"
-                }
+  unlockOrg:
+    handler: api/orgs/unlock.handler
+    timeout: 30
+    events:
+      - http:
+          path: /orgs/unlock
+          method: post
+  addMemberToOrg:
+    handler: api/orgs/addMember.handler
+    timeout: 30
+    events:
+      - http:
+          path: /orgs/member
+          method: post
+          cors: true
+  removeMemberFromOrg:
+    handler: api/orgs/removeMember.handler
+    timeout: 30
+    events:
+      - http:
+          path: /orgs/member
+          method: delete
+          cors: true
   stripeWebhook:
     handler: webhook/stripe.handler
-    timeout: 60
+    timeout: 30
     events:
       - http:
           path: /webhook/stripe
           method: post
           cors: true
-          integration: lambda
-          request:
-            template:
-              application/json: >
-                {
-                  "body": "$util.escapeJavaScript($input.body)",
-                  "stripeSignature" : "$input.params('Stripe-Signature')"
-                }
   exceptionLogger:
     handler: usage/exception.handler
     memorySize: 128
@@ -129,7 +117,6 @@ functions:
           path: /usage/exception
           method: post
           cors: true
-          integration: lambda
   statsLogger:
     handler: usage/stats.handler
     memorySize: 128
@@ -138,7 +125,6 @@ functions:
           path: /usage
           method: post
           cors: true
-          integration: lambda
 
 resources:
   Resources:
@@ -157,4 +143,20 @@ resources:
         ProvisionedThroughput:
           ReadCapacityUnits: 1
           WriteCapacityUnits: 1
-        TableName: ${self:custom.tableName}
+        TableName: ${self:custom.usersTableName}
+    KactusOrgsDynamoDbTable:
+      Type: 'AWS::DynamoDB::Table'
+      DeletionPolicy: Retain
+      Properties:
+        AttributeDefinitions:
+          -
+            AttributeName: id
+            AttributeType: S
+        KeySchema:
+          -
+            AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: ${self:custom.orgsTableName}

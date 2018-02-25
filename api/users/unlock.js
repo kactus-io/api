@@ -1,6 +1,8 @@
 const stripe = require('stripe')(process.env.STRIPE_SECRET)
-const storage = require('../storage')()
+const storage = require('../../storage')()
 const cleanBody = require('./_cleanBody')
+const handleError = require('../_handleError')
+const makeCallback = require('../_makeCallback')
 
 function createNewSubscription (body, parsedBody) {
   // create a new subscription
@@ -14,15 +16,15 @@ function createNewSubscription (body, parsedBody) {
 module.exports.handler = (event, context, callback) => {
   let parsedBody
   try {
-    parsedBody = JSON.parse(event.body || {})
+    parsedBody = JSON.parse(event.body || '{}') || {}
   } catch (e) {
-    callback(new Error('[400] Could not parse the body'))
+    makeCallback(callback, 'Could not parse the body', 400)
     return
   }
 
   const body = cleanBody(parsedBody)
   if (!body.githubId) {
-    callback(new Error('[400] Missing github ID'))
+    makeCallback(callback, 'Missing github ID', 400)
     return
   }
 
@@ -35,14 +37,16 @@ module.exports.handler = (event, context, callback) => {
     .then(found => {
       if (found) {
         if (!body.enterprise && (found.valid || found.validEnterprise)) {
-          callback(new Error('[403] Already unlocked'))
+          makeCallback(callback, 'Already unlocked', 403)
           bailout = true
           return
         } else if (body.enterprise && found.validEnterprise) {
-          callback(new Error('[403] Already unlocked'))
+          makeCallback(callback, 'Already unlocked', 403)
           bailout = true
           return
         }
+        body.orgs = found.orgs
+        body.createdAt = found.createdAt
         body.stripeId = found.stripeId
         body.valid = found.valid
         body.validEnterprise = found.validEnterprise
@@ -118,46 +122,10 @@ module.exports.handler = (event, context, callback) => {
     })
     .then(res => {
       if (bailout) { return }
-      callback(null, {
+      makeCallback(callback, {
         ok: true,
         message: 'Unlocked full access'
       })
     })
-    .catch((err) => {
-      console.error(err)
-      if (!err.type) {
-        return callback(err)
-      }
-      switch (err.type) {
-        case 'StripeCardError':
-          // A declined card error
-          const message = err.message // => e.g. "Your card's expiration year is invalid."
-          callback(new Error(`[400] ${message}`))
-          break
-        case 'RateLimitError':
-          // Too many requests made to the API too quickly
-          callback(new Error(`[503] Server is a bit overloaded, try again in a bit`))
-          break
-        case 'StripeInvalidRequestError':
-          // Invalid parameters were supplied to Stripe's API
-          callback(new Error(`[400] Bad request`))
-          break
-        case 'StripeAPIError':
-          // An error occurred internally with Stripe's API
-          callback(new Error(`[500] Stripe failed, sorry about that`))
-          break
-        case 'StripeConnectionError':
-          // Some kind of error occurred during the HTTPS communication
-          callback(new Error(`[500] Stripe is down, sorry about that`))
-          break
-        case 'StripeAuthenticationError':
-          // You probably used an incorrect API key
-          callback(new Error(`[500] How did that happen!?`))
-          break
-        default:
-          // Handle any other types of unexpected errors
-          callback(err)
-          break
-      }
-    })
+    .catch(handleError(callback))
 }
