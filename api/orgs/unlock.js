@@ -10,23 +10,23 @@ function createOrUpdateStripeCustomer (org, body, token, method) {
     return stripe.customers.update(body.stripeId, {
       email: body.email,
       source: token,
-      metadata: {
+      metadata: Object.assign(body.metadata || {}, {
         githubId: body.githubId,
         login: body.login,
         org: true,
         orgId: org.id
-      }
+      })
     })
   } else {
     return stripe.customers.create({
       email: body.email,
       source: token,
-      metadata: {
+      metadata: Object.assign(body.metadata || {}, {
         githubId: body.githubId,
         login: body.login,
         org: true,
         orgId: org.id
-      }
+      })
     }).then(customer => {
       console.log(customer)
       org.stripeId = customer.id

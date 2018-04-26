@@ -61,11 +61,11 @@ module.exports.handler = (event, context, callback) => {
         return stripe.customers.create({
           email: body.email,
           source: token,
-          metadata: {
+          metadata: Object.assign(parsedBody.metadata || {}, {
             githubId: body.githubId,
             login: body.login,
             enterprise: body.enterprise
-          }
+          })
         }).then(customer => {
           console.log(customer)
           body.stripeId = customer.id
