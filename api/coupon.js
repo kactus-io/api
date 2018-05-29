@@ -10,8 +10,8 @@ module.exports.handler = (event, context, callback) => {
       console.log(coupon)
       if (coupon && coupon.valid) {
         const discount = (coupon.amount_off
-            ? (coupon.amount_off + coupon.currency)
-            : (coupon.percent_off + '%')) +
+          ? (coupon.amount_off + coupon.currency)
+          : (coupon.percent_off + '%')) +
           ' off' +
           (coupon.duration_in_months
             ? (' for ' + coupon.duration_in_months + ' month' +

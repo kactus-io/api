@@ -1,9 +1,11 @@
-function createNewSubscription (stripe, {org, enterprise, coupon, members}) {
+const { PLANS } = require('../../constants')
+
+function createNewSubscription (stripe, {org, enterprise, coupon, members, duration}) {
   // create a new subscription
   return stripe.subscriptions.create({
     customer: org.stripeId,
     items: [{
-      plan: enterprise ? 'kactus-enterprise-1-month' : 'kactus-1-month',
+      plan: PLANS[enterprise ? 'enterprise' : 'premium'][duration || 'month'],
       quantity: members
     }],
     coupon: coupon || undefined
@@ -11,21 +13,28 @@ function createNewSubscription (stripe, {org, enterprise, coupon, members}) {
 }
 module.exports.createNewSubscription = createNewSubscription
 
-function updateSubscription (stripe, {org, fromPlan, toPlan, coupon, members}) {
+function updateSubscription (stripe, {org, fromPlan, toPlan, coupon, members, duration}) {
   // need to update the existing subscription
-  return stripe.subscriptions.list({
-    customer: org.stripeId,
-    plan: fromPlan === 'enterprise' ? 'kactus-enterprise-1-month' : 'kactus-1-month',
-    limit: 100
-  }).then((subscriptions) => {
-    const subscriptionToUpdate = subscriptions.data.find(s => s.status === 'active')
+  return Promise.all([
+    stripe.subscriptions.list({
+      customer: org.stripeId,
+      plan: PLANS[fromPlan || 'premium'].month,
+      limit: 100
+    }),
+    stripe.subscriptions.list({
+      customer: org.stripeId,
+      plan: PLANS[fromPlan || 'premium'].year,
+      limit: 100
+    })
+  ]).then(([monthlySubscriptions, yearlySubscriptions]) => {
+    const subscriptionToUpdate = monthlySubscriptions.data.find(s => s.status === 'active') || yearlySubscriptions.data.find(s => s.status === 'active')
     if (!subscriptionToUpdate) {
-      return createNewSubscription(stripe, {org, enterprise: toPlan === 'enterprise', coupon, members})
+      return createNewSubscription(stripe, {org, enterprise: toPlan === 'enterprise', coupon, members, duration})
     }
     if (toPlan !== fromPlan) {
       return stripe.subscriptions.update(subscriptionToUpdate.id, {
         items: [{
-          plan: toPlan === 'enterprise' ? 'kactus-enterprise-1-month' : 'kactus-1-month',
+          plan: PLANS[fromPlan || 'premium'][duration || 'month'],
           quantity: members
         }],
         coupon: coupon || undefined

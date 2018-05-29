@@ -93,19 +93,11 @@ module.exports.handler = (event, context, callback) => {
     })
     .then(() => {
       if (bailout) { return }
-      if (org.valid || org.validEnterprise) {
-        // need to update the existing subscription
-        return subs.updateSubscription(stripe, {
-          org,
-          fromPlan: 'enterprise',
-          toPlan: 'enterprise',
-          members: org.members.length - 1
-        })
-      }
-      // create a new subscription
-      return subs.createNewSubscription(stripe, {
+      // need to update the existing subscription
+      return subs.updateSubscription(stripe, {
         org,
-        enterprise: true,
+        fromPlan: org.validEnterprise ? 'enterprise' : 'premium',
+        toPlan: org.validEnterprise ? 'enterprise' : 'premium',
         members: org.members.length - 1
       })
     })

@@ -127,7 +127,9 @@ module.exports.handler = (event, context, callback) => {
           org,
           fromPlan: 'premium',
           toPlan: 'enterprise',
-          members: org.members.length
+          members: org.members.length,
+          coupon: body.coupon,
+          duration: body.duration
         })
       }
       // create a new subscription
@@ -135,7 +137,8 @@ module.exports.handler = (event, context, callback) => {
         org,
         enterprise: body.enterprise,
         members: 1,
-        coupon: body.coupon
+        coupon: body.coupon,
+        duration: body.duration
       })
     })
     .then(res => {

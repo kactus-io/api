@@ -3,12 +3,13 @@ const storage = require('../../storage')()
 const cleanBody = require('./_cleanBody')
 const handleError = require('../_handleError')
 const makeCallback = require('../_makeCallback')
+const { PLANS } = require('../../constants')
 
 function createNewSubscription (body, parsedBody) {
   // create a new subscription
   return stripe.subscriptions.create({
     customer: body.stripeId,
-    plan: body.enterprise ? 'kactus-enterprise-1-month' : 'kactus-1-month',
+    plan: body.enterprise ? PLANS.enterprise.month : PLANS.premium.month,
     coupon: parsedBody.coupon || undefined
   })
 }
@@ -87,17 +88,24 @@ module.exports.handler = (event, context, callback) => {
       if (bailout) { return }
       if (body.stripeId && body.valid && body.enterprise) {
         // need to update the existing subscription
-        return stripe.subscriptions.list({
-          customer: body.stripeId,
-          plan: 'kactus-1-month',
-          limit: 100
-        }).then((subscriptions) => {
-          const subscriptionToUpdate = subscriptions.data.find(s => s.status === 'active')
+        return Promise.all([
+          stripe.subscriptions.list({
+            customer: body.stripeId,
+            plan: PLANS.premium.month,
+            limit: 100
+          }),
+          stripe.subscriptions.list({
+            customer: body.stripeId,
+            plan: PLANS.premium.year,
+            limit: 100
+          })
+        ]).then(([monthlySubscriptions, yearlySubscriptions]) => {
+          const subscriptionToUpdate = monthlySubscriptions.data.find(s => s.status === 'active') || yearlySubscriptions.data.find(s => s.status === 'active')
           if (!subscriptionToUpdate) {
             return createNewSubscription(body, parsedBody)
           }
           return stripe.subscriptions.update(subscriptionToUpdate.id, {
-            plan: 'kactus-enterprise-1-month',
+            plan: PLANS.enterprise[parsedBody.duration || 'month'],
             coupon: parsedBody.coupon || undefined
           })
         })

@@ -6,10 +6,11 @@ custom:
 
 provider:
   name: aws
-  runtime: nodejs6.10
+  runtime: nodejs8.10
   region: eu-west-1
   stage: ${opt:stage, 'dev'}
   environment:
+    ENV: ${self:provider.stage}
     USERS_TABLE_NAME: ${self:custom.usersTableName}
     ORGS_TABLE_NAME: ${self:custom.orgsTableName}
     GITHUB_CLIENT_ID: ${file(./config.${self:provider.stage}.yml):GITHUB_CLIENT_ID}

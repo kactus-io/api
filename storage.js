@@ -135,13 +135,13 @@ module.exports = function Storage () {
             TableName: process.env.USERS_TABLE_NAME,
             Item: user
           })
-        .promise(),
+          .promise(),
         db
           .put({
             TableName: process.env.ORGS_TABLE_NAME,
             Item: org
           })
-        .promise()
+          .promise()
       ])
     },
 
@@ -154,13 +154,13 @@ module.exports = function Storage () {
             TableName: process.env.USERS_TABLE_NAME,
             Item: user
           })
-        .promise(),
+          .promise(),
         db
           .put({
             TableName: process.env.ORGS_TABLE_NAME,
             Item: org
           })
-        .promise()
+          .promise()
       ])
     },
 

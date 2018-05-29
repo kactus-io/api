@@ -1,5 +1,6 @@
 const stripe = require('stripe')(process.env.STRIPE_SECRET)
 const storage = require('../storage')()
+const { PLANS } = require('../constants')
 
 function callbackWithMessage (callback, message, code) {
   callback(null, {
@@ -26,9 +27,9 @@ function handleDeletedSubscription (subscription, callback) {
       if (!user) {
         return
       }
-      if (subscription.plan.id === 'kactus-enterprise-1-month') {
+      if (subscription.plan.id === PLANS.enterprise.month || subscription.plan.id === PLANS.enterprise.year) {
         user.validEnterprise = false
-      } else if (subscription.plan.id === 'kactus-1-month') {
+      } else if (subscription.plan.id === PLANS.premium.month || subscription.plan.id === PLANS.premium.year) {
         user.valid = false
       }
       if (orgId) {
