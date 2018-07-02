@@ -86,6 +86,7 @@ functions:
       - http:
           path: /orgs/unlock
           method: post
+          cors: true
   addMemberToOrg:
     handler: api/orgs/addMember.handler
     timeout: 30
@@ -101,6 +102,14 @@ functions:
       - http:
           path: /orgs/member
           method: delete
+          cors: true
+  updateCardDetails:
+    handler: api/orgs/updateCardDetails.handler
+    timeout: 30
+    events:
+      - http:
+          path: /orgs/update-card-details
+          method: put
           cors: true
   stripeWebhook:
     handler: webhook/stripe.handler
