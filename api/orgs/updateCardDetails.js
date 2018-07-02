@@ -61,7 +61,7 @@ module.exports.handler = (event, context, callback) => {
     })
     .then(() => {
       if (bailout) { return }
-      return stripe.updateCustomer(org.stripeId, {
+      return stripe.customers.update(org.stripeId, {
         email: body.email,
         source: token,
         metadata: Object.assign(body.metadata || {}, {
