@@ -46,7 +46,7 @@ function updateSubscription (stripe, {org, fromPlan, toPlan, coupon, members, du
     })
   }).then(() => {
     if (triggerInvoice) {
-      return stripe.invoice.create({
+      return stripe.invoices.create({
         customer: org.stripeId,
         description: 'One-off invoice when adding a member'
       })
