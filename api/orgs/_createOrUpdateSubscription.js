@@ -13,7 +13,7 @@ function createNewSubscription (stripe, {org, enterprise, coupon, members, durat
 }
 module.exports.createNewSubscription = createNewSubscription
 
-function updateSubscription (stripe, {org, fromPlan, toPlan, coupon, members, duration}) {
+function updateSubscription (stripe, {org, fromPlan, toPlan, coupon, members, duration, triggerInvoice}) {
   // need to update the existing subscription
   return Promise.all([
     stripe.subscriptions.list({
@@ -44,6 +44,13 @@ function updateSubscription (stripe, {org, fromPlan, toPlan, coupon, members, du
       quantity: members,
       prorate: true
     })
+  }).then(() => {
+    if (triggerInvoice) {
+      return stripe.invoice.create({
+        customer: org.stripeId,
+        description: 'One-off invoice when adding a member'
+      })
+    }
   })
 }
 module.exports.updateSubscription = updateSubscription

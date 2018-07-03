@@ -100,7 +100,8 @@ module.exports.handler = (event, context, callback) => {
         org,
         fromPlan: org.validEnterprise ? 'enterprise' : 'premium',
         toPlan: org.validEnterprise ? 'enterprise' : 'premium',
-        members: org.members.length + 1
+        members: org.members.length + 1,
+        triggerInvoice: true
       })
     })
     .then(() => {
