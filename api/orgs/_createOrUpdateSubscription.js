@@ -49,7 +49,7 @@ function updateSubscription (stripe, {org, fromPlan, toPlan, coupon, members, du
       return stripe.invoices.create({
         customer: org.stripeId,
         description: 'One-off invoice when adding a member'
-      })
+      }).catch(() => {})
     }
   })
 }

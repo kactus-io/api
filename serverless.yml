@@ -146,10 +146,27 @@ resources:
           -
             AttributeName: githubId
             AttributeType: S
+          -
+            AttributeName: login
+            AttributeType: S
         KeySchema:
           -
             AttributeName: githubId
             KeyType: HASH
+        GlobalSecondaryIndexes:
+          -
+            IndexName: loginIndex
+            KeySchema:
+              -
+                AttributeName: login
+                KeyType: HASH
+            Projection:
+              NonKeyAttributes:
+                - email
+              ProjectionType: INCLUDE
+            ProvisionedThroughput:
+              ReadCapacityUnits: 1
+              WriteCapacityUnits: 1
         ProvisionedThroughput:
           ReadCapacityUnits: 1
           WriteCapacityUnits: 1
