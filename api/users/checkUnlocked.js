@@ -33,13 +33,13 @@ module.exports.handler = (event, context, callback) => {
             const org = orgs.find(org => org.validEnterprise)
             user.validEnterprise = !!org
             user.validEnterpriseFromOrg = !!org
-            user.validEnterpriseFromOrgAdmin = org.admins.some(id => user.githubId === id)
+            user.validEnterpriseFromOrgAdmin = !!org && org.admins.some(id => user.githubId === id)
           }
           if (!user.valid) {
             const org = orgs.find(org => org.valid)
             user.valid = !!org
             user.validFromOrg = !!org
-            user.validFromOrgAdmin = org.admins.some(id => user.githubId === id)
+            user.validFromOrgAdmin = !!org && org.admins.some(id => user.githubId === id)
           }
           return user
         })
