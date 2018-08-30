@@ -64,8 +64,11 @@ module.exports = function Storage () {
         })
     },
 
-    update (data) {
+    update (data, body) {
       data.lastSeenAt = Date.now()
+      if (body) {
+        data = Object.merge(data, body)
+      }
       return db
         .put({
           TableName: process.env.USERS_TABLE_NAME,

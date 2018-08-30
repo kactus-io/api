@@ -53,13 +53,24 @@ module.exports.handler = (event, context, callback) => {
       }
     }).then(user => user.data)
       .then(user => {
-        return storage.findOne(user.id)
+        return storage.findOne(user.id).then(found => {
+          if (found) {
+            return found
+          }
+          const body = {
+            githubId: '' + user.githubId,
+            enterprise: false
+          }
+          if (user.email) {
+            body.email = user.email.email || user.email
+          }
+          if (user.login) {
+            body.login = user.login
+          }
+          return storage.create(body).then(() => body)
+        })
       })
       .then(user => {
-        if (!user) {
-          makeCallback(callback, 'User not found, please create a Kactus account first', 404)
-          return
-        }
         return storage.findOrgs(user.orgs).then(orgs => {
           user.orgs = orgs || []
           return makeCallback(callback, {
