@@ -67,7 +67,7 @@ module.exports = function Storage () {
     update (data, body) {
       data.lastSeenAt = Date.now()
       if (body) {
-        data = Object.merge(data, body)
+        data = Object.assign(data, body)
       }
       return db
         .put({
