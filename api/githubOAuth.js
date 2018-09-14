@@ -58,7 +58,7 @@ module.exports.handler = (event, context, callback) => {
             return found
           }
           const body = {
-            githubId: '' + user.githubId,
+            githubId: '' + user.id,
             enterprise: false
           }
           if (user.email) {
