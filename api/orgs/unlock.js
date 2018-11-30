@@ -4,6 +4,7 @@ const handleError = require('../_handleError')
 const makeCallback = require('../_makeCallback')
 const uuid = require('uuid/v4')
 const subs = require('./_createOrUpdateSubscription')
+const {cancel} = require('../users/unsubscribe')
 
 function createOrUpdateStripeCustomer (org, body, token, method) {
   if (org.stripeId) {
@@ -88,6 +89,10 @@ module.exports.handler = (event, context, callback) => {
           members: [],
           admins: [String(body.githubId)]
         }
+        // if the user already has a subscription, cancel it first
+        if (user.stripeId && (user.valid || user.validEnterprise)) {
+          return cancel(user, false)
+        }
       } else {
         return storage
           .findOneOrg(orgId)
@@ -135,7 +140,7 @@ module.exports.handler = (event, context, callback) => {
       // create a new subscription
       return subs.createNewSubscription(stripe, {
         org,
-        enterprise: body.enterprise,
+        plan: body.enterprise ? 'enterprise' : 'premium',
         members: 1,
         coupon: body.coupon,
         duration: body.duration
@@ -144,8 +149,8 @@ module.exports.handler = (event, context, callback) => {
     .then(res => {
       if (bailout) { return }
       console.log(res)
-      org.validEnterprise = true
-      org.valid = false
+      org.validEnterprise = body.enterprise
+      org.valid = !body.enterprise
       return storage.updateOrg(org).then(() => {
         if (method === 'createOrg') {
           return storage.addUserToOrg(org, user)
