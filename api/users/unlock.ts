@@ -3,21 +3,9 @@ import cleanBody from './_cleanBody'
 import { _handler } from '../../_handler'
 import { findOne, update, create } from '../../storage'
 import { BadRequest, Forbidden } from '../errors'
-import { PLANS } from '../../constants'
+import { createOrUpdateSubscription } from '../stripe-utils'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET)
-
-function createNewSubscription(
-  body: { stripeId: string; enterprise: boolean },
-  parsedBody: { coupon: string }
-) {
-  // create a new subscription
-  return stripe.subscriptions.create({
-    customer: body.stripeId,
-    plan: body.enterprise ? PLANS.enterprise.month : PLANS.premium.month,
-    coupon: parsedBody.coupon || undefined,
-  })
-}
 
 export const handler = _handler(async event => {
   let parsedBody = JSON.parse(event.body || '{}')
@@ -65,40 +53,24 @@ export const handler = _handler(async event => {
     user = await update(user, { stripeId: customer.id })
   }
 
-  if (user.valid && body.enterprise) {
-    // need to update the existing subscription
-    const [monthlySubscriptions, yearlySubscriptions] = await Promise.all([
-      stripe.subscriptions.list({
-        customer: user.stripeId,
-        plan: PLANS.premium.month,
-        limit: 100,
-      }),
-      stripe.subscriptions.list({
-        customer: user.stripeId,
-        plan: PLANS.premium.year,
-        limit: 100,
-      }),
-    ])
-
-    const subscriptionToUpdate =
-      monthlySubscriptions.data.find(s => s.status === 'active') ||
-      yearlySubscriptions.data.find(s => s.status === 'active')
-    if (!subscriptionToUpdate) {
-      await createNewSubscription(
-        { stripeId: user.stripeId, enterprise: body.enterprise },
-        parsedBody
-      )
-    } else {
-      await stripe.subscriptions.update(subscriptionToUpdate.id, {
-        plan: PLANS.enterprise[parsedBody.duration || 'month'],
-        coupon: parsedBody.coupon || undefined,
-      })
+  const res = await createOrUpdateSubscription(
+    {
+      stripeId: user.stripeId,
+      valid: user.valid,
+      validEnterprise: user.validEnterprise,
+    },
+    {
+      plan: body.enterprise ? 'enterprise' : 'premium',
+      members: 1,
+      coupon: parsedBody.coupon,
     }
-  } else {
-    await createNewSubscription(
-      { stripeId: user.stripeId, enterprise: body.enterprise },
-      parsedBody
-    )
+  )
+
+  if (!res.ok) {
+    return {
+      ok: false,
+      paymentIntentSecret: res.paymentIntentSecret,
+    }
   }
 
   user = await update(user, {

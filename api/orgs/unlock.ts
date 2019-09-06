@@ -1,9 +1,6 @@
 import * as Stripe from 'stripe'
 import { _handler } from '../../_handler'
-import {
-  updateSubscription,
-  createNewSubscription,
-} from './_createOrUpdateSubscription'
+import { createOrUpdateSubscription } from '../stripe-utils'
 import {
   findOne,
   findOneOrg,
@@ -92,6 +89,8 @@ export const handler = _handler(async event => {
     if (user.stripeId && (user.valid || user.validEnterprise)) {
       await cancel({ stripeId: user.stripeId }, false)
     }
+
+    org = await addUserToOrg(org, user)
   } else {
     const potentialOrg = await findOneOrg(orgId)
 
@@ -117,25 +116,26 @@ export const handler = _handler(async event => {
 
   org = await createOrUpdateStripeCustomer(org, body, token)
 
-  if (org.stripeId && org.valid && body.enterprise) {
-    // need to update the subscription
-    await updateSubscription(stripe, {
-      org,
-      fromPlan: 'premium',
-      toPlan: 'enterprise',
+  const res = await createOrUpdateSubscription(
+    {
+      stripeId: org.stripeId,
+      valid: org.valid,
+      validEnterprise: org.validEnterprise,
+    },
+    {
+      plan: body.enterprise ? 'enterprise' : 'premium',
       members: org.members.length,
       coupon: body.coupon,
       duration: body.duration,
-    })
-  } else {
-    // create a new subscription
-    await createNewSubscription(stripe, {
-      org,
-      plan: body.enterprise ? 'enterprise' : 'premium',
-      members: 1,
-      coupon: body.coupon,
-      duration: body.duration,
-    })
+    }
+  )
+
+  if (!res.ok) {
+    return {
+      ok: false,
+      org: org,
+      paymentIntentSecret: res.paymentIntentSecret,
+    }
   }
 
   org = await updateOrg(org, {
@@ -143,10 +143,6 @@ export const handler = _handler(async event => {
     valid: !body.enterprise,
   })
 
-  // if we are creating the org, then we need to add the current user as a member
-  if (!orgId) {
-    org = await addUserToOrg(org, user)
-  }
   return {
     ok: true,
     org: org,

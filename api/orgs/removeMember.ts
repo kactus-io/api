@@ -1,6 +1,5 @@
-import * as Stripe from 'stripe'
 import { _handler } from '../../_handler'
-import { updateSubscription } from './_createOrUpdateSubscription'
+import { createOrUpdateSubscription } from '../stripe-utils'
 import {
   findOne,
   findOneByName,
@@ -8,8 +7,6 @@ import {
   removeUserFromOrg,
 } from '../../storage'
 import { BadRequest, Unauthorized, Forbidden, NotFound } from '../errors'
-
-const stripe = new Stripe(process.env.STRIPE_SECRET)
 
 /**
  * githubId
@@ -76,12 +73,25 @@ export const handler = _handler(async event => {
   }
 
   // need to update the existing subscription
-  await updateSubscription(stripe, {
-    org,
-    fromPlan: org.validEnterprise ? 'enterprise' : 'premium',
-    toPlan: org.validEnterprise ? 'enterprise' : 'premium',
-    members: org.members.length - 1,
-  })
+  const res = await createOrUpdateSubscription(
+    {
+      stripeId: org.stripeId,
+      valid: org.valid,
+      validEnterprise: org.validEnterprise,
+    },
+    {
+      plan: org.validEnterprise ? 'enterprise' : 'premium',
+      members: org.members.length - 1,
+    }
+  )
+
+  if (!res.ok) {
+    return {
+      ok: false,
+      org: org,
+      paymentIntentSecret: res.paymentIntentSecret,
+    }
+  }
 
   await removeUserFromOrg(org, member)
 

@@ -11,52 +11,86 @@ function isSubscription(
   return object.object === 'subscription'
 }
 
-// function isCheckoutSession(
-//   object: Stripe.IObject
-// ): object is Stripe.checkouts.sessions.ICheckoutSession {
-//   return object.object === 'checkout.session'
-// }
+function isInvoice(object: Stripe.IObject): object is Stripe.invoices.IInvoice {
+  return object.object === 'invoice'
+}
 
 async function handleDeletedSubscription(
   subscription: Stripe.subscriptions.ISubscription
 ) {
+  const customer = await stripe.customers.retrieve(
+    subscription.customer as string
+  )
+
+  let updateBody: { validEnterprise?: boolean; valid?: boolean } = {}
   if (
-    subscription.object === 'subscription' &&
-    subscription.status !== 'active'
+    subscription.plan.id === PLANS.enterprise.month ||
+    subscription.plan.id === PLANS.enterprise.year
   ) {
-    const customer = await stripe.customers.retrieve(
-      subscription.customer as string
-    )
-
-    let updateBody: { validEnterprise?: boolean; valid?: boolean } = {}
-    if (
-      subscription.plan.id === PLANS.enterprise.month ||
-      subscription.plan.id === PLANS.enterprise.year
-    ) {
-      updateBody.validEnterprise = false
-    } else if (
-      subscription.plan.id === PLANS.premium.month ||
-      subscription.plan.id === PLANS.premium.year
-    ) {
-      updateBody.valid = false
-    }
-
-    if (customer.metadata.orgId) {
-      const org = await findOneOrg(customer.metadata.orgId)
-      if (!org) {
-        return { message: 'nothing to do' }
-      }
-      await updateOrg(org, updateBody)
-    } else {
-      const user = await findOne(customer.metadata.githubId)
-      if (!user) {
-        return { message: 'nothing to do' }
-      }
-      await update(user, updateBody)
-    }
-
-    return { message: 'locked' }
+    updateBody.validEnterprise = false
+  } else if (
+    subscription.plan.id === PLANS.premium.month ||
+    subscription.plan.id === PLANS.premium.year
+  ) {
+    updateBody.valid = false
   }
+
+  if (customer.metadata.orgId) {
+    const org = await findOneOrg(customer.metadata.orgId)
+    if (!org) {
+      return { message: 'nothing to do' }
+    }
+    await updateOrg(org, updateBody)
+  } else {
+    const user = await findOne(customer.metadata.githubId)
+    if (!user) {
+      return { message: 'nothing to do' }
+    }
+    await update(user, updateBody)
+  }
+
+  return { message: 'locked' }
+}
+
+async function handleCreatedSubscription(invoice: Stripe.invoices.IInvoice) {
+  const subscription = await stripe.subscriptions.retrieve(
+    invoice.subscription as string
+  )
+
+  const customer = await stripe.customers.retrieve(
+    subscription.customer as string
+  )
+
+  let updateBody: { validEnterprise?: boolean; valid?: boolean } = {}
+  if (
+    subscription.plan.id === PLANS.enterprise.month ||
+    subscription.plan.id === PLANS.enterprise.year
+  ) {
+    updateBody.valid = false
+    updateBody.validEnterprise = true
+  } else if (
+    subscription.plan.id === PLANS.premium.month ||
+    subscription.plan.id === PLANS.premium.year
+  ) {
+    updateBody.validEnterprise = false
+    updateBody.valid = true
+  }
+
+  if (customer.metadata.orgId) {
+    const org = await findOneOrg(customer.metadata.orgId)
+    if (!org) {
+      return { message: 'nothing to do' }
+    }
+    await updateOrg(org, updateBody)
+  } else {
+    const user = await findOne(customer.metadata.githubId)
+    if (!user) {
+      return { message: 'nothing to do' }
+    }
+    await update(user, updateBody)
+  }
+
+  return { message: 'unlocked' }
 }
 
 export const handler = _handler(async event => {
@@ -73,6 +107,15 @@ export const handler = _handler(async event => {
       const subscription = stripeEvent.data.object
       if (isSubscription(subscription) && subscription.status !== 'active') {
         return await handleDeletedSubscription(subscription)
+      }
+    }
+    case 'invoice.payment_succeeded': {
+      const invoice = stripeEvent.data.object
+      if (
+        isInvoice(invoice) &&
+        invoice.billing_reason === 'subscription_create'
+      ) {
+        return await handleCreatedSubscription(invoice)
       }
     }
     default:
