@@ -35,9 +35,12 @@ function cancelSubscriptions(
       )
     )
   }
+
   return Promise.all(
     subscriptions.map(subscription =>
-      stripe.subscriptions.del(subscription.id, { at_period_end: true })
+      stripe.subscriptions.update(subscription.id, {
+        cancel_at_period_end: true,
+      })
     )
   )
 }
@@ -63,8 +66,9 @@ export async function cancel(user: { stripeId: string }, refund: boolean) {
 
   const refundAmounts = await Promise.all(
     subscriptions.data.map(async subscription => {
-      const invoice = await stripe.invoices.retrieveUpcoming(user.stripeId, {
+      const invoice = await stripe.invoices.retrieveUpcoming({
         subscription: subscription.id,
+        subscription_prorate: true,
         subscription_items: [
           {
             id: subscription.items.data[0].id,
@@ -72,7 +76,6 @@ export async function cancel(user: { stripeId: string }, refund: boolean) {
             quantity: 0,
           },
         ],
-        subscription_prorate: true,
         subscription_proration_date: prorationDate,
       })
       const invoiceItem = invoice.lines.data.filter(
