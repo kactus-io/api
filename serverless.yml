@@ -22,17 +22,20 @@ provider:
     STRIPE_SECRET: ${file(./config.${self:provider.stage}.yml):STRIPE_SECRET}
     STRIPE_ENDPOINT_SECRET: ${file(./config.${self:provider.stage}.yml):STRIPE_ENDPOINT_SECRET}
   iamRoleStatements:
-    - Effect: "Allow"
+    - Effect: 'Allow'
       Action:
-        - "dynamodb:*"
-        - "logs:CreateLogGroup"
-        - "logs:CreateLogStream"
-        - "logs:PutLogEvents"
-        - "apigateway:POST"
+        - 'dynamodb:*'
+        - 'logs:CreateLogGroup'
+        - 'logs:CreateLogStream'
+        - 'logs:PutLogEvents'
+        - 'apigateway:POST'
       Resource:
         - arn:aws:dynamodb:*:*:table/${self:custom.usersTableName}
         - arn:aws:dynamodb:*:*:table/${self:custom.orgsTableName}
-        - "arn:aws:apigateway:*"
+        - 'arn:aws:apigateway:*'
+
+plugins:
+  - serverless-webpack
 
 functions:
   githubOAuth:
@@ -143,22 +146,26 @@ resources:
       DeletionPolicy: Retain
       Properties:
         AttributeDefinitions:
-          -
-            AttributeName: githubId
+          - AttributeName: githubId
             AttributeType: S
-          -
-            AttributeName: login
+          - AttributeName: login
             AttributeType: S
         KeySchema:
-          -
-            AttributeName: githubId
+          - AttributeName: githubId
             KeyType: HASH
         GlobalSecondaryIndexes:
-          -
-            IndexName: loginIndex
+          - IndexName: indexByLogin
             KeySchema:
-              -
-                AttributeName: login
+              - AttributeName: login
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: 1
+              WriteCapacityUnits: 1
+          - IndexName: loginIndex
+            KeySchema:
+              - AttributeName: login
                 KeyType: HASH
             Projection:
               NonKeyAttributes:
@@ -176,12 +183,10 @@ resources:
       DeletionPolicy: Retain
       Properties:
         AttributeDefinitions:
-          -
-            AttributeName: id
+          - AttributeName: id
             AttributeType: S
         KeySchema:
-          -
-            AttributeName: id
+          - AttributeName: id
             KeyType: HASH
         ProvisionedThroughput:
           ReadCapacityUnits: 1
