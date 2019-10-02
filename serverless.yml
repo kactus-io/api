@@ -31,7 +31,9 @@ provider:
         - 'apigateway:POST'
       Resource:
         - arn:aws:dynamodb:*:*:table/${self:custom.usersTableName}
+        - arn:aws:dynamodb:*:*:table/${self:custom.usersTableName}/*
         - arn:aws:dynamodb:*:*:table/${self:custom.orgsTableName}
+        - arn:aws:dynamodb:*:*:table/${self:custom.orgsTableName}/*
         - 'arn:aws:apigateway:*'
 
 plugins:
