@@ -1,75 +1,100 @@
-import * as https from 'https'
 import * as qs from 'querystring'
-import axios from 'axios'
+import fetch from 'node-fetch'
 import { findOne, findOrgs, User, create } from '../storage'
 import { _handler } from '../_handler'
 import { BadRequest } from './errors'
 
-function authenticate(code: String) {
-  return new Promise((resolve, reject) => {
-    try {
-      var data = qs.stringify({
-        client_id: process.env.GITHUB_CLIENT_ID,
-        client_secret: process.env.GITHUB_CLIENT_SECRET,
-        code: code,
-      })
-
-      var reqOptions = {
-        host: process.env.GITHUB_HOST,
-        port: process.env.GITHUB_PORT || 443,
-        path: process.env.GITHUB_PATH,
-        method: process.env.GITHUB_METHOD || 'POST',
-        headers: { 'content-length': data.length },
-      }
-
-      var body = ''
-      var req = https.request(reqOptions, res => {
-        res.setEncoding('utf8')
-        res.on('data', chunk => {
-          body += chunk
-        })
-        res.on('end', () => {
-          var token = qs.parse(body).access_token
-          if (!token) {
-            reject(new BadRequest('missing access token'))
-          } else {
-            resolve(token)
-          }
-        })
-      })
-
-      req.write(data)
-      req.end()
-      req.on('error', e => {
-        reject(e)
-      })
-    } catch (err) {
-      reject(err)
+async function authenticate(
+  code: String
+): Promise<{
+  access_token: string
+  token_type: 'bearer'
+  scope: string
+}> {
+  const res = await fetch(
+    `https://github.com/login/oauth/access_token?${qs.stringify({
+      client_id: process.env.GITHUB_CLIENT_ID,
+      client_secret: process.env.GITHUB_CLIENT_SECRET,
+      code,
+    })}`,
+    {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+      },
     }
-  })
+  )
+
+  const data = await res.json()
+
+  if (!res.ok) {
+    const error = new BadRequest(data.message)
+    error.status = res.status
+    throw error
+  }
+
+  return data
+}
+
+async function getEmail(access_token: string, scopes: string[], user: any) {
+  // sometime the email is nested or not. It's weird.
+  let email: string = (user.email && user.email.email) || user.email
+
+  // let's check if we have access to the private emails of the user
+  if (scopes.some(s => s === 'user:email')) {
+    const privateEmailsRes = await fetch('https://api.github.com/user/emails', {
+      headers: {
+        Authorization: 'Token ' + access_token,
+        Accept: 'application/vnd.github.v3+json',
+      },
+    })
+
+    if (privateEmailsRes.ok) {
+      const privateEmails: {
+        email: string
+        verified: boolean
+        primary: boolean
+        visibility: 'public' | 'private'
+      }[] = await privateEmailsRes.json()
+
+      email = privateEmails.find(e => e.primary).email
+    }
+  }
+
+  return email
 }
 
 export const handler = _handler(async event => {
-  const token = await authenticate(event.queryStringParameters.code)
+  const { access_token, scope } = await authenticate(
+    event.queryStringParameters.code
+  )
 
-  const res = await axios({
-    url: 'https://api.github.com/user',
+  const res = await fetch('https://api.github.com/user', {
     headers: {
-      Authorization: 'Token ' + token,
+      Authorization: 'Token ' + access_token,
       Accept: 'application/vnd.github.v3+json',
     },
   })
-  const githubUser = res.data
-  const existingUser = await findOne(githubUser.id)
+
+  const data = await res.json()
+
+  if (!res.ok) {
+    const error = new BadRequest(data.message)
+    error.status = res.status
+    throw error
+  }
+
+  const githubId = String(data.id)
+  const existingUser = await findOne(githubId)
 
   let user: User
   if (existingUser) {
     user = existingUser
   } else {
     user = await create({
-      githubId: '' + githubUser.id,
-      email: githubUser.email.email || githubUser.email,
-      login: githubUser.login,
+      githubId: githubId,
+      email: await getEmail(access_token, scope.split(', '), data),
+      login: data.login,
     })
   }
 
@@ -81,6 +106,6 @@ export const handler = _handler(async event => {
       ...user,
       orgs,
     },
-    token,
+    token: access_token,
   }
 })

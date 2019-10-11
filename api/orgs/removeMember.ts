@@ -1,11 +1,6 @@
 import { _handler } from '../../_handler'
 import { createOrUpdateSubscription } from '../stripe-utils'
-import {
-  findOne,
-  findOneByName,
-  findOneOrg,
-  removeUserFromOrg,
-} from '../../storage'
+import { findOne, findOneOrg, removeUserFromOrg } from '../../storage'
 import { BadRequest, Unauthorized, Forbidden, NotFound } from '../errors'
 
 /**
@@ -25,8 +20,8 @@ export const handler = _handler(async event => {
     throw new BadRequest('Missing org ID')
   }
 
-  if (!body.memberUsername) {
-    throw new BadRequest('Missing member username')
+  if (!body.memberId) {
+    throw new BadRequest('Missing member id')
   }
 
   if (!body.githubToken) {
@@ -40,7 +35,7 @@ export const handler = _handler(async event => {
       }
       return found
     }),
-    findOneByName(body.memberUsername)
+    findOne(body.memberId)
       .then(found => {
         if (!found) {
           throw new Unauthorized('Member is not registered on Kactus')
