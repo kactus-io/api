@@ -38,7 +38,9 @@ export const handler = _handler(async event => {
     findOneByName(body.memberUsername)
       .then(found => {
         if (!found) {
-          throw new Unauthorized('Member is not registered on Kactus')
+          throw new Unauthorized(
+            `Member ${body.memberUsername} is not registered on Kactus`
+          )
         }
         return findOne(found.githubId)
       })
