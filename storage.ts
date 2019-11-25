@@ -127,26 +127,21 @@ export const findOrgs = async (
   if (!ids || !ids.length) {
     return []
   }
-  const meta = await db
-    .scan({
-      TableName: process.env.ORGS_TABLE_NAME,
-      ProjectionExpression:
-        'id, members, admins, stripeId, valid, validEnterprise',
-      FilterExpression: ids.reduce((prev, _, i) => {
-        if (i > 0) {
-          prev += ' OR '
-        }
-        return prev + 'id = :id' + i
-      }, ''),
-      ExpressionAttributeValues: ids.reduce((prev, id, i) => {
-        prev[':id' + i] = String(id)
-        return prev
-      }, {}),
-    })
-    .promise()
-
-  // @ts-ignore
-  return (meta || { Items: [] }).Items || []
+  return Promise.all(
+    ids.map(id =>
+      db
+        .get({
+          TableName: process.env.ORGS_TABLE_NAME,
+          ProjectionExpression:
+            'id, members, admins, stripeId, valid, validEnterprise',
+          Key: {
+            id: String(id),
+          },
+        })
+        .promise()
+        .then(meta => (meta || {}).Item as Org)
+    )
+  ).then(x => x.filter(y => !!y))
 }
 
 export const addUserToOrg = async (org: Org, user: User) => {
