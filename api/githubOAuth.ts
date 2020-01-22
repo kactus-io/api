@@ -87,18 +87,45 @@ export const handler = _handler(async event => {
   const githubId = String(data.id)
   const existingUser = await findOne(githubId)
 
-  let user: User
-  if (existingUser) {
-    user = existingUser
-  } else {
-    user = await create({
-      githubId: githubId,
-      email: await getEmail(access_token, scope.split(', '), data),
-      login: data.login,
-    })
+  const user: User & {
+    validEnterpriseFromOrg: boolean
+    validEnterpriseFromOrgAdmin: boolean
+    validFromOrg: boolean
+    validFromOrgAdmin: boolean
+  } = {
+    ...(await (existingUser
+      ? existingUser
+      : create({
+          githubId: githubId,
+          email: await getEmail(access_token, scope.split(', '), data),
+          login: data.login,
+        }))),
+    validEnterpriseFromOrg: false,
+    validEnterpriseFromOrgAdmin: false,
+    validFromOrg: false,
+    validFromOrgAdmin: false,
   }
 
   const orgs = await findOrgs(user.orgs)
+
+  // check if a user if part of a valid org
+  if (orgs && orgs.length) {
+    if (!user.validEnterprise) {
+      const org = orgs.find(org => org.validEnterprise)
+      user.validEnterprise = !!org
+      user.validEnterpriseFromOrg = !!org
+      user.validEnterpriseFromOrgAdmin =
+        !!org && org.admins.some(id => user.githubId === id)
+    }
+
+    if (!user.valid) {
+      const org = orgs.find(org => org.valid)
+      user.valid = !!org
+      user.validFromOrg = !!org
+      user.validFromOrgAdmin =
+        !!org && org.admins.some(id => user.githubId === id)
+    }
+  }
 
   return {
     ok: true,

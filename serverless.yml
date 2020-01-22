@@ -1,12 +1,12 @@
 service: kactus-api
 
 custom:
-  usersTableName: ${opt:stage, self:provider.stage}-dynamo-kactus-users
-  orgsTableName: ${opt:stage, self:provider.stage}-kactus-orgs
+  usersTableName: ${self:provider.stage}-dynamo-kactus-users
+  orgsTableName: ${self:provider.stage}-kactus-orgs
 
 provider:
   name: aws
-  runtime: nodejs8.10
+  runtime: nodejs12.x
   region: eu-west-1
   stage: ${opt:stage, 'dev'}
   environment:
@@ -15,10 +15,6 @@ provider:
     ORGS_TABLE_NAME: ${self:custom.orgsTableName}
     GITHUB_CLIENT_ID: ${file(./config.${self:provider.stage}.yml):GITHUB_CLIENT_ID}
     GITHUB_CLIENT_SECRET: ${file(./config.${self:provider.stage}.yml):GITHUB_CLIENT_SECRET}
-    GITHUB_HOST: ${file(./config.${self:provider.stage}.yml):GITHUB_HOST}
-    GITHUB_PORT: ${file(./config.${self:provider.stage}.yml):GITHUB_PORT}
-    GITHUB_PATH: ${file(./config.${self:provider.stage}.yml):GITHUB_PATH}
-    GITHUB_METHOD: ${file(./config.${self:provider.stage}.yml):GITHUB_METHOD}
     STRIPE_SECRET: ${file(./config.${self:provider.stage}.yml):STRIPE_SECRET}
     STRIPE_ENDPOINT_SECRET: ${file(./config.${self:provider.stage}.yml):STRIPE_ENDPOINT_SECRET}
   iamRoleStatements:
@@ -84,6 +80,14 @@ functions:
           path: /user
           method: get
           cors: true
+  updateCardDetails:
+    handler: api/users/updateCardDetails.handler
+    timeout: 30
+    events:
+      - http:
+          path: /user/update-card-details
+          method: put
+          cors: true
   unlockOrg:
     handler: api/orgs/unlock.handler
     timeout: 30
@@ -108,13 +112,21 @@ functions:
           path: /orgs/member
           method: delete
           cors: true
-  updateCardDetails:
+  updateOrgCardDetails:
     handler: api/orgs/updateCardDetails.handler
     timeout: 30
     events:
       - http:
           path: /orgs/update-card-details
           method: put
+          cors: true
+  unsubscribeOrg:
+    handler: api/orgs/unsubscribe.handler
+    timeout: 30
+    events:
+      - http:
+          path: /orgs/unsubscribe
+          method: delete
           cors: true
   stripeWebhook:
     handler: webhook/stripe.handler
