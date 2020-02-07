@@ -14,11 +14,7 @@ export const handler = _handler(async event => {
     throw new BadRequest('Missing org ID')
   }
 
-  if (!body.token) {
-    throw new BadRequest('Missing token')
-  }
-
-  let orgId = body.orgId
+  const orgId = body.orgId
 
   const org = await findOneOrg(orgId)
 
