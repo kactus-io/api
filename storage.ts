@@ -22,6 +22,7 @@ export type Org = {
   valid: boolean
   validEnterprise: boolean
   createdAt: number
+  prepaidFor?: number
 }
 
 const db = new AWS.DynamoDB.DocumentClient()
@@ -206,7 +207,7 @@ export const createOrg = async (
   return org
 }
 
-export const updateOrg = async (data: Org, body?: Partial<User>) => {
+export const updateOrg = async (data: Org, body?: Partial<Org>) => {
   if (body) {
     data = Object.assign(data, body)
   }

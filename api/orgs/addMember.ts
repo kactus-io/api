@@ -69,25 +69,27 @@ export const handler = _handler(async event => {
     throw new Forbidden('The organization is locked')
   }
 
-  // need to update the existing subscription
-  const res = await createOrUpdateSubscription(
-    {
-      stripeId: org.stripeId,
-      valid: org.valid,
-      validEnterprise: org.validEnterprise,
-    },
-    {
-      plan: org.validEnterprise ? 'enterprise' : 'premium',
-      members: org.members.length + 1,
-      triggerInvoice: true,
-    }
-  )
+  if (!org.prepaidFor || org.prepaidFor === org.members.length) {
+    // need to update the existing subscription
+    const res = await createOrUpdateSubscription(
+      {
+        stripeId: org.stripeId,
+        valid: org.valid,
+        validEnterprise: org.validEnterprise,
+      },
+      {
+        plan: org.validEnterprise ? 'enterprise' : 'premium',
+        members: org.members.length + 1,
+        triggerInvoice: true,
+      }
+    )
 
-  if (!res.ok) {
-    return {
-      ok: false,
-      org: org,
-      paymentIntentSecret: res.paymentIntentSecret,
+    if (!res.ok) {
+      return {
+        ok: false,
+        org: org,
+        paymentIntentSecret: res.paymentIntentSecret,
+      }
     }
   }
 

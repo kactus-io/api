@@ -40,7 +40,7 @@ async function handleDeletedSubscription(
     if (!org) {
       return { message: 'nothing to do' }
     }
-    await updateOrg(org, updateBody)
+    await updateOrg(org, { ...updateBody, prepaidFor: 0 })
   } else {
     const user = await findOne(customer.metadata.githubId)
     if (!user) {
