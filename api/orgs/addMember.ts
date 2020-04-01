@@ -69,7 +69,7 @@ export const handler = _handler(async event => {
     throw new Forbidden('The organization is locked')
   }
 
-  if (!org.prepaidFor || org.prepaidFor === org.members.length) {
+  if (!org.prepaidFor) {
     // need to update the existing subscription
     const res = await createOrUpdateSubscription(
       {
@@ -91,6 +91,12 @@ export const handler = _handler(async event => {
         paymentIntentSecret: res.paymentIntentSecret,
       }
     }
+  }
+
+  if (org.prepaidFor && org.prepaidFor === org.members.length) {
+    throw new Forbidden(
+      'You have reach the maximum number of members in your organisation. Please contact us.'
+    )
   }
 
   await addUserToOrg(org, member)
