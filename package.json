@@ -5,7 +5,7 @@
     "deploy:prod": "serverless deploy -s production"
   },
   "dependencies": {
-    "node-fetch": "^2.6.0"
+    "node-fetch": "^2.6.1"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.31",
