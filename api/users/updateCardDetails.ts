@@ -1,9 +1,7 @@
-import * as Stripe from 'stripe'
 import { _handler } from '../../_handler'
 import { findOne } from '../../storage'
 import { BadRequest, NotFound } from '../errors'
-
-const stripe = new Stripe(process.env.STRIPE_SECRET)
+import { stripe } from '../../stripe'
 
 /**
  * githubId

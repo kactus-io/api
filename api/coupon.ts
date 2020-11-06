@@ -1,7 +1,5 @@
-import * as Stripe from 'stripe'
 import { _handler } from '../_handler'
-
-const stripe = new Stripe(process.env.STRIPE_SECRET)
+import { stripe } from '../stripe'
 
 export const handler = _handler(async event => {
   const couponString = decodeURIComponent(event.pathParameters.coupon)

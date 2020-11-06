@@ -1,11 +1,8 @@
-import * as Stripe from 'stripe'
 import cleanBody from './_cleanBody'
 import { _handler } from '../../_handler'
 import { findOne, update, create } from '../../storage'
 import { BadRequest, Forbidden } from '../errors'
-import { createOrUpdateSubscription } from '../stripe-utils'
-
-const stripe = new Stripe(process.env.STRIPE_SECRET)
+import { createOrUpdateSubscription, stripe } from '../../stripe'
 
 export const handler = _handler(async event => {
   let parsedBody = JSON.parse(event.body || '{}')
@@ -36,8 +33,7 @@ export const handler = _handler(async event => {
       metadata: {
         githubId: body.githubId,
         login: body.login,
-        // @ts-ignore
-        enterprise: body.enterprise,
+        enterprise: String(body.enterprise),
       },
     })
   } else {

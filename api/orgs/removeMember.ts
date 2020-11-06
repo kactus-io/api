@@ -1,5 +1,5 @@
 import { _handler } from '../../_handler'
-import { createOrUpdateSubscription } from '../stripe-utils'
+import { createOrUpdateSubscription } from '../../stripe'
 import { findOne, findOneOrg, removeUserFromOrg } from '../../storage'
 import { BadRequest, Unauthorized, Forbidden, NotFound } from '../errors'
 

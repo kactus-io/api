@@ -1,6 +1,5 @@
-import * as Stripe from 'stripe'
 import { _handler } from '../../_handler'
-import { createOrUpdateSubscription } from '../stripe-utils'
+import { createOrUpdateSubscription, stripe } from '../../stripe'
 import {
   findOne,
   findOneOrg,
@@ -12,8 +11,6 @@ import {
 import { BadRequest, Unauthorized, Forbidden, NotFound } from '../errors'
 import { cancel } from '../users/unsubscribe'
 import * as uuid from 'uuid/v4'
-
-const stripe = new Stripe(process.env.STRIPE_SECRET)
 
 async function createOrUpdateStripeCustomer(
   org: Org,

@@ -1,7 +1,11 @@
-import * as Stripe from 'stripe'
-import { PLANS } from '../constants'
+import Stripe from 'stripe'
+import { PLANS } from './constants'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET)
+export type { Stripe }
+
+export const stripe = new Stripe(process.env.STRIPE_SECRET, {
+  apiVersion: '2020-08-27',
+})
 
 export async function findSubscriptions(
   user: { stripeId: string },
@@ -24,7 +28,7 @@ export async function findSubscriptions(
   return monthlySubscriptions.data.concat(yearlySubscriptions.data)
 }
 
-function isInvoice(invoice: any): invoice is Stripe.invoices.IInvoice {
+function isInvoice(invoice: any): invoice is Stripe.Invoice {
   return !!invoice.payment_intent
 }
 
@@ -56,6 +60,12 @@ export async function createNewSubscription(
 
   if (!isInvoice(subscription.latest_invoice)) {
     throw new Error('missing invoice')
+  }
+
+  if (typeof subscription.latest_invoice.payment_intent === 'string') {
+    throw new Error(
+      'subscription.latest_invoice.payment_intent is not expanded'
+    )
   }
 
   if (
@@ -144,7 +154,7 @@ export async function createOrUpdateSubscription(
       subscriptionToUpdate.items.data[0].id,
       {
         quantity: members,
-        prorate: true,
+        proration_behavior: 'create_prorations',
       }
     )
   }

@@ -80,6 +80,13 @@ functions:
           path: /user
           method: get
           cors: true
+  accessStripeDashboard:
+    handler: api/accessStripeDashboard.handler
+    events:
+      - http:
+          path: /accessStripeDashboard
+          method: post
+          cors: true
   updateCardDetails:
     handler: api/users/updateCardDetails.handler
     timeout: 30

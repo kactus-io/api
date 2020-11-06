@@ -1,36 +1,33 @@
-import * as Stripe from 'stripe'
 import { PLANS } from '../constants'
 import { _handler } from '../_handler'
 import { findOne, findOneOrg, update, updateOrg } from '../storage'
+import { stripe, Stripe } from '../stripe'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET)
-
-function isSubscription(
-  object: Stripe.IObject
-): object is Stripe.subscriptions.ISubscription {
+function isSubscription(object: any): object is Stripe.Subscription {
   return object.object === 'subscription'
 }
 
-function isInvoice(object: Stripe.IObject): object is Stripe.invoices.IInvoice {
+function isInvoice(object: any): object is Stripe.Invoice {
   return object.object === 'invoice'
 }
 
-async function handleDeletedSubscription(
-  subscription: Stripe.subscriptions.ISubscription
-) {
+async function handleDeletedSubscription(subscription: Stripe.Subscription) {
   const customer = await stripe.customers.retrieve(
     subscription.customer as string
   )
 
+  if (!('metadata' in customer)) {
+    return { message: 'deleted user' }
+  }
+
+  const plan = subscription.items.data[0].plan
+
   let updateBody: { validEnterprise?: boolean; valid?: boolean } = {}
-  if (
-    subscription.plan.id === PLANS.enterprise.month ||
-    subscription.plan.id === PLANS.enterprise.year
-  ) {
+  if (plan.id === PLANS.enterprise.month || plan.id === PLANS.enterprise.year) {
     updateBody.validEnterprise = false
   } else if (
-    subscription.plan.id === PLANS.premium.month ||
-    subscription.plan.id === PLANS.premium.year
+    plan.id === PLANS.premium.month ||
+    plan.id === PLANS.premium.year
   ) {
     updateBody.valid = false
   }
@@ -52,7 +49,7 @@ async function handleDeletedSubscription(
   return { message: 'locked' }
 }
 
-async function handleCreatedSubscription(invoice: Stripe.invoices.IInvoice) {
+async function handleCreatedSubscription(invoice: Stripe.Invoice) {
   const subscription = await stripe.subscriptions.retrieve(
     invoice.subscription as string
   )
@@ -61,16 +58,19 @@ async function handleCreatedSubscription(invoice: Stripe.invoices.IInvoice) {
     subscription.customer as string
   )
 
+  if (!('metadata' in customer)) {
+    return { message: 'deleted user' }
+  }
+
+  const plan = subscription.items.data[0].plan
+
   let updateBody: { validEnterprise?: boolean; valid?: boolean } = {}
-  if (
-    subscription.plan.id === PLANS.enterprise.month ||
-    subscription.plan.id === PLANS.enterprise.year
-  ) {
+  if (plan.id === PLANS.enterprise.month || plan.id === PLANS.enterprise.year) {
     updateBody.valid = false
     updateBody.validEnterprise = true
   } else if (
-    subscription.plan.id === PLANS.premium.month ||
-    subscription.plan.id === PLANS.premium.year
+    plan.id === PLANS.premium.month ||
+    plan.id === PLANS.premium.year
   ) {
     updateBody.validEnterprise = false
     updateBody.valid = true

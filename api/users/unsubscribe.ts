@@ -1,15 +1,10 @@
-import * as Stripe from 'stripe'
 import cleanBody from './_cleanBody'
 import { _handler } from '../../_handler'
 import { findOne } from '../../storage'
 import { BadRequest, NotFound, Forbidden } from '../errors'
+import { stripe, Stripe } from '../../stripe'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET)
-
-async function refundCharges(
-  charges: Stripe.charges.ICharge[],
-  amount: number
-) {
+async function refundCharges(charges: Stripe.Charge[], amount: number) {
   if (amount <= 0 || !charges.length) {
     return
   }
@@ -25,7 +20,7 @@ async function refundCharges(
 }
 
 function cancelSubscriptions(
-  subscriptions: Stripe.subscriptions.ISubscription[],
+  subscriptions: Stripe.Subscription[],
   refund: boolean
 ) {
   if (refund) {
@@ -68,7 +63,7 @@ export async function cancel(user: { stripeId: string }, refund: boolean) {
     subscriptions.data.map(async subscription => {
       const invoice = await stripe.invoices.retrieveUpcoming({
         subscription: subscription.id,
-        subscription_prorate: true,
+        subscription_proration_behavior: 'create_prorations',
         subscription_items: [
           {
             id: subscription.items.data[0].id,
