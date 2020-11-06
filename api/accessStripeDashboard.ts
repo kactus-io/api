@@ -5,7 +5,6 @@ import { stripe } from '../stripe'
 
 /**
  * githubId
- * memberUsername
  * githubToken
  * orgId
  */
@@ -14,10 +13,6 @@ export const handler = _handler(async event => {
 
   if (!body.githubId) {
     throw new BadRequest('Missing github ID')
-  }
-
-  if (!body.orgId) {
-    throw new BadRequest('Missing org ID')
   }
 
   if (!body.githubToken) {
