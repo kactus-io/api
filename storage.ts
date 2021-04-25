@@ -134,7 +134,7 @@ export const findOrgs = async (
         .get({
           TableName: process.env.ORGS_TABLE_NAME,
           ProjectionExpression:
-            'id, members, admins, stripeId, valid, validEnterprise',
+            'id, members, admins, stripeId, valid, validEnterprise, prepaidFor',
           Key: {
             id: String(id),
           },
