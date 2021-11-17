@@ -11,7 +11,7 @@
     "@types/node-fetch": "^2.5.7",
     "@types/stripe": "^7.13.25",
     "@types/uuid": "^3.4.5",
-    "aws-sdk": "^2.524.0",
+    "aws-sdk": "^2.814.0",
     "prettier": "^1.18.2",
     "serverless": "^2.10.0",
     "serverless-webpack": "^5.3.1",
